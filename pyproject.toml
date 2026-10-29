@@ -1,0 +1,26 @@
+[project]
+name = "warm-intro-pathfinder"
+version = "0.1.0"
+description = "Find the strongest chain of warm introductions to anyone at a company."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=7"]
+
+[project.scripts]
+pathfinder = "pathfinder.__main__:main"
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["pathfinder"]
+
+[tool.setuptools.package-data]
+pathfinder = ["static/*.html"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

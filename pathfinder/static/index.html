@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Warm Intro Pathfinder</title>
+<style>
+  :root {
+    --bg: #f6f5f1; --panel: #ffffff; --ink: #1d1d1b; --muted: #6b6a64;
+    --line: #e4e2da; --accent: #0a66c2; --accent-ink: #ffffff; --accent-soft: #e8f0fa;
+    --member: #0f7b5f; --member-soft: #e3f3ed; --hidden: #8a8780; --hidden-soft: #efeee9;
+    --target: #9a4a00; --target-soft: #fbeedd; --danger: #b42318;
+    --radius: 12px; --shadow: 0 1px 2px rgba(0,0,0,.05), 0 4px 16px rgba(0,0,0,.04);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141413; --panel: #1e1e1c; --ink: #ecebe6; --muted: #a09e96; --line: #33322e;
+      --accent: #4c9be8; --accent-ink: #0b1622; --accent-soft: #1b2a3a;
+      --member: #4fc79f; --member-soft: #17312a; --hidden: #8f8c84; --hidden-soft: #2a2926;
+      --target: #f0a35e; --target-soft: #3a2a1b; --danger: #f47067;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 15px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  header { padding: 28px 24px 8px; max-width: 1180px; margin: 0 auto; }
+  h1 { margin: 0; font-size: 26px; letter-spacing: -.02em; }
+  .tagline { color: var(--muted); margin: 4px 0 12px; }
+  .stats { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { background: var(--panel); border: 1px solid var(--line); border-radius: 999px;
+          padding: 3px 12px; font-size: 13px; color: var(--muted); }
+  .chip b { color: var(--ink); }
+  main { max-width: 1180px; margin: 0 auto; padding: 16px 24px 48px;
+         display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 20px; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+           box-shadow: var(--shadow); padding: 18px; }
+  h2 { font-size: 15px; margin: 0 0 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  form.search { display: grid; grid-template-columns: 1.2fr 1.2fr 1fr auto; gap: 10px; align-items: end; }
+  @media (max-width: 700px) { form.search { grid-template-columns: 1fr 1fr; } }
+  label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; font-weight: 600; }
+  input, select, textarea { width: 100%; font: inherit; color: var(--ink); background: var(--bg);
+           border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+  input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  button { font: inherit; font-weight: 600; border: 0; border-radius: 8px; padding: 9px 16px;
+           background: var(--accent); color: var(--accent-ink); cursor: pointer; }
+  button.ghost { background: transparent; color: var(--muted); border: 1px solid var(--line); padding: 4px 10px; font-size: 13px; }
+  button.ghost:hover { color: var(--danger); border-color: var(--danger); }
+  .hops { display: flex; gap: 6px; margin-top: 12px; align-items: center; font-size: 13px; color: var(--muted); }
+  .hops input { width: auto; }
+  #summary { color: var(--muted); margin: 16px 2px 8px; font-size: 14px; }
+  .result { border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; margin-top: 12px; background: var(--panel); }
+  .result-top { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; flex-wrap: wrap; }
+  .prob { font-size: 22px; font-weight: 700; letter-spacing: -.02em; }
+  .prob small { font-size: 13px; color: var(--muted); font-weight: 500; }
+  .who { color: var(--muted); font-size: 14px; }
+  .chain { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 12px 0 6px; }
+  .node { border-radius: 999px; padding: 4px 12px; font-size: 14px; font-weight: 600; white-space: nowrap; }
+  .node.you { background: var(--accent-soft); color: var(--accent); }
+  .node.member, .node.connection { background: var(--member-soft); color: var(--member); }
+  .node.hidden { background: var(--hidden-soft); color: var(--hidden); font-style: italic; font-weight: 500; }
+  .node.target { background: var(--target-soft); color: var(--target); }
+  .edge { font-size: 12px; color: var(--muted); display: flex; flex-direction: column; align-items: center; line-height: 1.1; }
+  .edge span:first-child { font-size: 16px; }
+  ul.reasons { margin: 6px 0 0; padding-left: 18px; color: var(--muted); font-size: 13px; }
+  details { margin-top: 10px; }
+  summary { cursor: pointer; color: var(--accent); font-weight: 600; font-size: 14px; }
+  .draft textarea { margin-top: 8px; min-height: 200px; font-size: 14px; }
+  .draft .row { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; font-size: 13px; color: var(--muted); }
+  .members { list-style: none; padding: 0; margin: 0 0 16px; max-height: 360px; overflow: auto; }
+  .members li { display: flex; justify-content: space-between; gap: 8px; align-items: center;
+                padding: 8px 0; border-bottom: 1px solid var(--line); }
+  .members .name { font-weight: 600; }
+  .members .meta { font-size: 12px; color: var(--muted); }
+  .join { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .join .full { grid-column: 1 / -1; }
+  .note { font-size: 12px; color: var(--muted); margin: 10px 0 0; }
+  .msg { font-size: 13px; margin-top: 8px; min-height: 1em; }
+  .msg.err { color: var(--danger); }
+  .empty { color: var(--muted); padding: 24px 4px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Warm Intro Pathfinder</h1>
+  <p class="tagline">Find the strongest chain of people who can introduce you to someone at a company.</p>
+  <div class="stats" id="stats"></div>
+</header>
+
+<main>
+  <section>
+    <div class="panel">
+      <h2>Find an intro</h2>
+      <form class="search" id="search-form">
+        <div><label for="member">Search as</label><select id="member" required></select></div>
+        <div><label for="company">Company</label>
+          <input id="company" list="company-list" placeholder="e.g. LinkedIn" required>
+          <datalist id="company-list"></datalist></div>
+        <div><label for="title">Role keyword (optional)</label><input id="title" placeholder="e.g. engineer"></div>
+        <div><button type="submit">Find paths</button></div>
+      </form>
+      <div class="hops">Max hops:
+        <label><input type="radio" name="hops" value="1"> 1</label>
+        <label><input type="radio" name="hops" value="2"> 2</label>
+        <label><input type="radio" name="hops" value="3" checked> 3</label>
+      </div>
+    </div>
+    <div id="summary"></div>
+    <div id="results"><p class="empty">Pick who you are and a company to see ranked intro paths.</p></div>
+  </section>
+
+  <aside class="panel">
+    <h2>Network members</h2>
+    <ul class="members" id="members"></ul>
+
+    <h2>Join the network</h2>
+    <form class="join" id="join-form">
+      <div><label for="j-first">First name</label><input id="j-first" required></div>
+      <div><label for="j-last">Last name</label><input id="j-last" required></div>
+      <div class="full"><label for="j-url">LinkedIn profile URL</label><input id="j-url" placeholder="https://www.linkedin.com/in/you"></div>
+      <div><label for="j-company">Current company / school</label><input id="j-company"></div>
+      <div><label for="j-position">Position</label><input id="j-position"></div>
+      <div><label for="j-school">School</label><input id="j-school"></div>
+      <div><label for="j-past">Past companies</label><input id="j-past" placeholder="comma-separated"></div>
+      <div class="full"><label for="j-file">Connections.csv from your LinkedIn data export</label><input id="j-file" type="file" accept=".csv,text/csv" required></div>
+      <div class="full"><button type="submit">Add me</button></div>
+    </form>
+    <div class="msg" id="join-msg"></div>
+    <p class="note">Privacy: other members never see your connection list. They only see that you can make an intro to someone at a company they searched for. People deeper in a chain who aren't members stay anonymous. Remove yourself anytime and your rows are deleted.</p>
+  </aside>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+const pct = (p) => `${Math.round(p * 100)}%`;
+
+async function api(path, options) {
+  const res = await fetch(path, options);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
+  return data;
+}
+
+async function refresh() {
+  const [stats, members] = await Promise.all([api('/api/stats'), api('/api/members')]);
+  const s = $('stats'); s.replaceChildren();
+  [[stats.members, 'members'], [stats.people, 'people'], [stats.ties, 'connections'],
+   [stats.matching.mentions - stats.matching.people, 'duplicate mentions merged']].forEach(([n, label]) => {
+    const c = el('span', 'chip'); c.append(el('b', null, n.toLocaleString()), ` ${label}`); s.append(c);
+  });
+
+  const dl = $('company-list'); dl.replaceChildren();
+  stats.top_companies.forEach((c) => { const o = el('option'); o.value = c.company; o.label = `${c.people} people`; dl.append(o); });
+
+  const sel = $('member'); const keep = sel.value; sel.replaceChildren();
+  const list = $('members'); list.replaceChildren();
+  if (!members.length) list.append(el('li', 'meta', 'No members yet.'));
+  members.forEach((m) => {
+    const o = el('option', null, m.name); o.value = m.member_id; sel.append(o);
+    const li = el('li'); const info = el('div');
+    info.append(el('div', 'name', m.name), el('div', 'meta', `${m.position || 'Member'}${m.company ? ' · ' + m.company : ''} · ${m.connections} connections`));
+    const del = el('button', 'ghost', 'Remove'); del.type = 'button';
+    del.onclick = async () => {
+      if (!confirm(`Remove ${m.name} and delete all of their uploaded connections?`)) return;
+      await api(`/api/members/${encodeURIComponent(m.member_id)}`, { method: 'DELETE' });
+      await refresh();
+    };
+    li.append(info, del); list.append(li);
+  });
+  if (keep && members.some((m) => m.member_id === keep)) sel.value = keep;
+}
+
+function renderResults(data) {
+  const box = $('results'); box.replaceChildren();
+  $('summary').textContent = `${data.people_at_company} people at ${data.query.company} in the network · ${data.reachable} reachable within ${data.query.max_hops} hop${data.query.max_hops > 1 ? 's' : ''}`;
+  if (!data.results.length) { box.append(el('p', 'empty', 'No path found. Try more hops, a different company spelling, or remove the role keyword.')); return; }
+
+  data.results.forEach((r) => {
+    const card = el('article', 'result');
+    const top = el('div', 'result-top');
+    const prob = el('div', 'prob', pct(r.probability)); prob.append(el('small', null, ` likely · ${r.hops} hop${r.hops > 1 ? 's' : ''}`));
+    top.append(prob, el('div', 'who', `${r.target.position} at ${r.target.company}`));
+
+    const chain = el('div', 'chain');
+    r.path.forEach((n, i) => {
+      if (i > 0) { const e = el('div', 'edge'); e.append(el('span', null, '→'), el('span', null, pct(r.hop_details[i - 1].probability))); chain.append(e); }
+      chain.append(el('span', `node ${n.kind}`, n.label));
+    });
+
+    const reasons = el('ul', 'reasons');
+    r.hop_details.forEach((h, i) => reasons.append(el('li', null, `${r.path[i].label} → ${r.path[i + 1].label}: ${h.reasons.join(', ')}`)));
+
+    const details = el('details', 'draft');
+    details.append(el('summary', null, `Draft a message to ${r.draft.to}`));
+    const ta = el('textarea'); ta.value = r.draft.body;
+    const row = el('div', 'row'); const copy = el('button', 'ghost', 'Copy'); copy.type = 'button';
+    copy.onclick = async () => { await navigator.clipboard.writeText(ta.value); copy.textContent = 'Copied'; setTimeout(() => copy.textContent = 'Copy', 1500); };
+    row.append(el('span', null, 'Edit before sending. Nothing is sent from here.'), copy);
+    details.append(ta, row);
+
+    card.append(top, chain, reasons, details); box.append(card);
+  });
+}
+
+$('search-form').onsubmit = async (e) => {
+  e.preventDefault();
+  const params = new URLSearchParams({
+    member: $('member').value, company: $('company').value.trim(), title: $('title').value.trim(),
+    max_hops: document.querySelector('input[name=hops]:checked').value,
+  });
+  try { renderResults(await api(`/api/search?${params}`)); }
+  catch (err) { $('results').replaceChildren(el('p', 'empty', err.message)); }
+};
+
+$('join-form').onsubmit = async (e) => {
+  e.preventDefault();
+  const msg = $('join-msg'); msg.className = 'msg'; msg.textContent = 'Uploading…';
+  try {
+    const file = $('j-file').files[0];
+    if (file.size > 5 * 1024 * 1024) throw new Error('That file is over 5 MB.');
+    const body = {
+      profile: {
+        first_name: $('j-first').value, last_name: $('j-last').value, url: $('j-url').value,
+        company: $('j-company').value, position: $('j-position').value, school: $('j-school').value,
+        past_companies: $('j-past').value,
+      },
+      csv: await file.text(),
+    };
+    const out = await api('/api/members', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    msg.textContent = 'Added! You can now search as yourself.';
+    e.target.reset(); await refresh(); $('member').value = out.member_id;
+  } catch (err) { msg.className = 'msg err'; msg.textContent = err.message; }
+};
+
+refresh().catch((err) => { $('stats').textContent = err.message; });
+</script>
+</body>
+</html>
