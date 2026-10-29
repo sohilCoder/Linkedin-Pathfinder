@@ -1,6 +1,6 @@
 # Warm Intro Pathfinder
 
-**Find the strongest chain of people who can introduce you to someone at a company.**
+Find the strongest chain of people who can introduce you to someone at a company.
 
 A group of people (a student club, a cohort, a group of friends) each upload the
 `Connections.csv` from their own LinkedIn data export. Pathfinder merges those
